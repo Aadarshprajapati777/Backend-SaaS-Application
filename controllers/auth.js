@@ -114,7 +114,6 @@ export const login = async (req, res, next) => {
     next(err);
   }
 };
-
 /**
  * @desc    Log user out / clear cookie
  * @route   GET /api/auth/logout
