@@ -11,9 +11,21 @@ import { protect } from '../middlewares/auth.js';
 const router = express.Router();
 
 // Public routes
-router.post('/register', register);
+// Add logging for registration requests
+router.post('/register', (req, res, next) => {
+  console.log('Registration request received:', {
+    userType: req.body.userType,
+    email: req.body.email,
+    businessData: req.body.userType === 'business' ? {
+      businessName: req.body.businessName,
+      businessSize: req.body.businessSize
+    } : null
+  });
+  next();
+}, register);
+
 router.post('/login', login);
-router.get('/logout', logout);
+router.post('/logout', logout);
 
 // Protected routes - require authentication
 router.get('/me', protect, getMe);

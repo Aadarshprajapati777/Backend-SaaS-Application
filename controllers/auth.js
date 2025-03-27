@@ -63,7 +63,7 @@ const sendTokenResponse = (user, statusCode, res) => {
         return next(createError('Business name is required for business accounts', 400));
       }
       userData.businessName = businessName;
-      userData.businessSize = businessSize || 'small';
+      userData.businessSize = businessSize;
       userData.role = 'owner'; // Business account creator is the owner
     }
 
@@ -72,7 +72,16 @@ const sendTokenResponse = (user, statusCode, res) => {
     // Send token response
     sendTokenResponse(user, 201, res);
   } catch (err) {
-    next(err);
+    console.error('Registration error:', err.message);
+    
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(val => val.message);
+      return next(createError(messages.join(', '), 400));
+    }
+    
+    // Handle other errors
+    next(createError(err.message || 'Server Error', 500));
   }
 };
 
@@ -116,14 +125,23 @@ export const login = async (req, res, next) => {
 };
 /**
  * @desc    Log user out / clear cookie
- * @route   GET /api/auth/logout
+ * @route   POST /api/auth/logout
  * @access  Private
  */
 export const logout = async (req, res, next) => {
-  res.status(200).json({
-    success: true,
-    data: {}
-  });
+  try {
+    // If you have any server-side session cleanup, do it here
+    console.log('User logged out');
+    
+    res.status(200).json({
+      success: true,
+      message: 'Successfully logged out',
+      data: {}
+    });
+  } catch (err) {
+    console.error('Logout error:', err.message);
+    next(createError('Failed to logout properly', 500));
+  }
 };
 
 /**
