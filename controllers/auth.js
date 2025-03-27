@@ -42,7 +42,19 @@ const sendTokenResponse = (user, statusCode, res) => {
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, userType, businessName, businessSize } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      userType, 
+      businessName, 
+      businessSize,
+      industry,
+      website,
+      plan,
+      teamSize,
+      apiAccess
+    } = req.body;
 
     // Check if email already exists
     const existingUser = await User.findOne({ email });
@@ -63,9 +75,30 @@ export const register = async (req, res, next) => {
       if (!businessName) {
         return next(createError('Business name is required for business accounts', 400));
       }
+      
       userData.businessName = businessName;
       userData.businessSize = businessSize || 'small';
       userData.role = 'owner'; // Business account creator is the owner
+      
+      // Add optional business fields if provided
+      if (industry) userData.industry = industry;
+      if (website) userData.website = website;
+      if (plan) userData.plan = plan;
+      if (teamSize) userData.teamSize = teamSize;
+      if (apiAccess !== undefined) userData.apiAccess = apiAccess;
+      
+      // Set appropriate usage limits based on plan
+      if (plan === 'starter') {
+        userData.usageLimit = 1000;
+      } else if (plan === 'professional') {
+        userData.usageLimit = 5000;
+      } else if (plan === 'enterprise') {
+        userData.usageLimit = 100000;
+      }
+    } else {
+      // Set default plan and limits for individual users
+      userData.plan = 'free';
+      userData.usageLimit = 100;
     }
 
     const user = await User.create(userData);
@@ -104,6 +137,10 @@ export const login = async (req, res, next) => {
     if (!isMatch) {
       return next(createError('Invalid credentials', 401));
     }
+
+    // Update last active timestamp
+    user.lastActiveAt = Date.now();
+    await user.save({ validateBeforeSave: false });
 
     // Send token response
     sendTokenResponse(user, 200, res);
@@ -150,6 +187,11 @@ export const getMe = async (req, res, next) => {
 export const generateApiKey = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
+
+    // Check if user is allowed to generate API key
+    if (user.userType === 'individual' && user.plan === 'free') {
+      return next(createError('Upgrade to a paid plan to access API features', 403));
+    }
 
     // Generate API key
     const apiKey = user.generateApiKey();

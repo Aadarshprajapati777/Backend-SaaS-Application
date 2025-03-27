@@ -29,6 +29,7 @@ const UserSchema = new mongoose.Schema({
     enum: ['individual', 'business'],
     default: 'individual'
   },
+  // Business user fields
   businessName: {
     type: String,
     trim: true,
@@ -38,15 +39,39 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ['small', 'medium', 'large'],
   },
+  industry: {
+    type: String,
+    enum: [
+      'technology', 'finance', 'healthcare', 'education', 
+      'retail', 'manufacturing', 'consulting', 'media', 
+      'legal', 'nonprofit', 'other'
+    ],
+  },
+  website: {
+    type: String,
+    match: [
+      /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/,
+      'Please add a valid URL'
+    ]
+  },
+  plan: {
+    type: String,
+    enum: ['starter', 'professional', 'enterprise', 'free'],
+    default: 'free'
+  },
+  teamSize: {
+    type: String,
+    enum: ['1-5', '6-15', '16-30', '31+']
+  },
+  apiAccess: {
+    type: Boolean,
+    default: false
+  },
+  // End business user fields
   role: {
     type: String,
     enum: ['user', 'admin', 'owner'],
     default: 'user'
-  },
-  plan: {
-    type: String,
-    enum: ['free', 'basic', 'premium', 'enterprise'],
-    default: 'free'
   },
   usageLimit: {
     type: Number,
@@ -76,7 +101,24 @@ const UserSchema = new mongoose.Schema({
     default: Date.now
   },
   resetPasswordToken: String,
-  resetPasswordExpire: Date
+  resetPasswordExpire: Date,
+  // Business usage tracking
+  documentsUploaded: {
+    type: Number,
+    default: 0
+  },
+  modelsCreated: {
+    type: Number,
+    default: 0
+  },
+  totalTokensUsed: {
+    type: Number,
+    default: 0
+  },
+  lastActiveAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
 // Encrypt password using bcrypt
@@ -119,6 +161,30 @@ UserSchema.methods.generateApiKey = function() {
   this.apiKey = apiKey;
   return apiKey;
 };
+
+// Set plan-based usage limits
+UserSchema.pre('save', function(next) {
+  if (this.isModified('plan')) {
+    // Set usage limits based on plan
+    switch (this.plan) {
+      case 'free':
+        this.usageLimit = 100;
+        break;
+      case 'starter':
+        this.usageLimit = 1000;
+        break;
+      case 'professional':
+        this.usageLimit = 5000;
+        break;
+      case 'enterprise':
+        this.usageLimit = 100000;
+        break;
+      default:
+        this.usageLimit = 100;
+    }
+  }
+  next();
+});
 
 const User = mongoose.model('User', UserSchema);
 
